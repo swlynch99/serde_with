@@ -952,3 +952,37 @@ fn test_pickfirst() {
     check_matches_schema::<IntOrDisplay>(&json!(7));
     check_matches_schema::<IntOrDisplay>(&json!("17"));
 }
+
+#[test]
+fn test_seq() {
+    use std::collections::BTreeMap;
+
+    #[serde_as]
+    #[derive(JsonSchema, Serialize)]
+    #[serde(transparent)]
+    struct SeqOf<K, V>(
+        #[serde_as(as = "Seq<(_, _)>")]
+        #[serde(bound(
+            serialize = "K: Serialize, V: Serialize",
+            deserialize = "K: Deserialize<'de>, V: Deserialize<'de>"
+        ))]
+        BTreeMap<K, V>,
+    );
+
+    #[derive(JsonSchema, Serialize)]
+    struct Composite {
+        a: u32,
+        b: String,
+    }
+
+    check_matches_schema::<SeqOf<u32, String>>(&json!([[7, "test"], [19, "more text"]]));
+    check_matches_schema::<SeqOf<Composite, u32>>(&json!([
+        [
+            {
+                "a": 88,
+                "b": "key"
+            },
+            37
+        ]
+    ]));
+}

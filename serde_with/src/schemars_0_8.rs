@@ -960,6 +960,76 @@ schema_for_pickfirst!(A B);
 schema_for_pickfirst!(A B C);
 schema_for_pickfirst!(A B C D);
 
+impl<K, V, KA, VA> JsonSchemaAs<BTreeMap<K, V>> for Seq<(KA, VA)>
+where
+    KA: JsonSchemaAs<K>,
+    VA: JsonSchemaAs<V>,
+{
+    fn schema_name() -> String {
+        std::format!(
+            "Seq<{}, {}>",
+            <WrapSchema<K, KA>>::schema_name(),
+            <WrapSchema<V, VA>>::schema_name()
+        )
+    }
+
+    fn schema_id() -> Cow<'static, str> {
+        std::format!(
+            "serde_with::Seq<{}, {}>",
+            <WrapSchema<K, KA>>::schema_id(),
+            <WrapSchema<V, VA>>::schema_id()
+        )
+        .into()
+    }
+
+    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+        let element = SchemaObject {
+            instance_type: Some(InstanceType::Array.into()),
+            array: Some(Box::new(ArrayValidation {
+                items: Some(SingleOrVec::Vec(std::vec![
+                    gen.subschema_for::<WrapSchema<K, KA>>(),
+                    gen.subschema_for::<WrapSchema<V, VA>>()
+                ])),
+                min_items: Some(2),
+                max_items: Some(2),
+                ..Default::default()
+            })),
+            ..Default::default()
+        };
+
+        SchemaObject {
+            instance_type: Some(InstanceType::Array.into()),
+            array: Some(Box::new(ArrayValidation {
+                items: Some(SingleOrVec::Single(Box::new(element.into()))),
+                ..Default::default()
+            })),
+            ..Default::default()
+        }
+        .into()
+    }
+}
+
+macro_rules! schema_for_seq {
+    ( $ty:ty $( => $param:ident )?) => {
+        impl<K, V, $( $param, )? KA, VA> JsonSchemaAs<$ty> for Seq<(KA, VA)>
+        where
+            KA: JsonSchemaAs<K>,
+            VA: JsonSchemaAs<V>,
+        {
+            forward_schema!(WrapSchema<BTreeMap<K, V>, Seq<(KA, VA)>>);
+        }
+    }
+}
+
+schema_for_seq!(HashMap<K, V, S> => S);
+
+#[cfg(feature = "hashbrown_0_14")]
+schema_for_seq!(hashbrown_0_14::HashMap<K, V, S> => S);
+#[cfg(feature = "indexmap_1")]
+schema_for_seq!(indexmap_1::IndexMap<K, V, S> => S);
+#[cfg(feature = "indexmap_2")]
+schema_for_seq!(indexmap_2::IndexMap<K, V, S> => S);
+
 impl<T, TA> JsonSchemaAs<T> for SetLastValueWins<TA>
 where
     TA: JsonSchemaAs<T>,
