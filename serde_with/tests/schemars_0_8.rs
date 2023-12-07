@@ -941,3 +941,14 @@ mod one_or_many {
         check_matches_schema::<WithPreferMany>(&json!(["test", 1]));
     }
 }
+
+#[test]
+fn test_pickfirst() {
+    #[serde_as]
+    #[derive(JsonSchema, Serialize)]
+    #[serde(transparent)]
+    struct IntOrDisplay(#[serde_as(as = "PickFirst<(_, DisplayFromStr)>")] u32);
+
+    check_matches_schema::<IntOrDisplay>(&json!(7));
+    check_matches_schema::<IntOrDisplay>(&json!("17"));
+}
